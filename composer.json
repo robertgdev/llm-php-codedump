@@ -1,0 +1,35 @@
+{
+    "name": "codebase-dump/php",
+    "description": "Generate a single-file dump of your repository for LLM input",
+    "type": "project",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "CodebaseDump\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "CodebaseDump\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": "^8.4",
+        "guzzlehttp/guzzle": "^7.0",
+        "ext-fileinfo": "*",
+        "ext-json": "*"
+    },
+    "require-dev": {
+        "pestphp/pest": "^3.0"
+    },
+    "scripts": {
+        "test": "pest"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}
