@@ -163,6 +163,54 @@ abstract class OutputFormatterBase
     }
 
     /**
+     * Generates a detailed list of skipped files with reasons.
+     */
+    public function generateSkippedFilesList(DirectoryAnalysis $data): string
+    {
+        $skipped = $this->collectSkippedFiles($data);
+
+        if (empty($skipped)) {
+            return "No files were skipped.\n";
+        }
+
+        $output = "Skipped files:\n\n";
+        foreach ($skipped as $entry) {
+            $path = $entry['path'];
+            $reason = $entry['reason'];
+            $output .= "  {$path}\n";
+            $output .= "    Reason: {$reason}\n";
+        }
+
+        return $output;
+    }
+
+    /**
+     * Collects all skipped files (ignored or binary) with their reasons.
+     *
+     * @return array<int, array{path: string, reason: string}>
+     */
+    private function collectSkippedFiles(NodeAnalysis $node, string $path = ''): array
+    {
+        $skipped = [];
+
+        $currentPath = $path !== '' ? $path . DIRECTORY_SEPARATOR . $node->name : $node->name;
+
+        if ($node instanceof TextFileAnalysis) {
+            if ($node->isIgnored && $node->reason !== '') {
+                $skipped[] = ['path' => $currentPath, 'reason' => 'Ignored: ' . $node->reason];
+            } elseif ($node->isBinary()) {
+                $skipped[] = ['path' => $currentPath, 'reason' => 'Binary file (contains null bytes)'];
+            }
+        } elseif ($node instanceof DirectoryAnalysis) {
+            foreach ($node->children as $child) {
+                $skipped = array_merge($skipped, $this->collectSkippedFiles($child, $currentPath));
+            }
+        }
+
+        return $skipped;
+    }
+
+    /**
      * Generates a string of the top largest files.
      *
      * @param array<int, TextFileAnalysis> $files

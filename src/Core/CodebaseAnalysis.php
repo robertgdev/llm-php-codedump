@@ -14,7 +14,7 @@ use CodebaseDump\Models\TextFileAnalysis;
 class CodebaseAnalysis
 {
     /**
-     * Checks if a file is a text file by attempting to read it.
+     * Checks if a file is a text file by checking for null bytes.
      */
     public function isTextFile(string $filePath): bool
     {
@@ -31,11 +31,15 @@ class CodebaseAnalysis
                 return false;
             }
 
-            // Check for null bytes which indicate binary content
-            return !preg_match('/[^\x09\x0A\x0D\x20-\x7E]/', $chunk);
+            return strpos($chunk, "\x00") === false;
         } catch (\Throwable $e) {
             return false;
         }
+    }
+
+    public function isTextFileByContent(string $content): bool
+    {
+        return strpos($content, "\x00") === false;
     }
 
     /**
@@ -91,7 +95,8 @@ class CodebaseAnalysis
     public function analyzeFile(
         string $itemPath,
         bool $isIgnored,
-        ?NodeAnalysis $parent
+        ?NodeAnalysis $parent,
+        string $ignoreReason = ''
     ): ?TextFileAnalysis {
         if (!file_exists($itemPath)) {
             echo "File not found {$itemPath}\n";
@@ -106,7 +111,8 @@ class CodebaseAnalysis
             name: basename($itemPath),
             fileContent: $content,
             isIgnored: $isIgnored,
-            parent: $parent
+            parent: $parent,
+            reason: $isIgnored ? $ignoreReason : (!$isText ? 'Binary file (contains null bytes)' : '')
         );
     }
 
@@ -119,9 +125,10 @@ class CodebaseAnalysis
         ?NodeAnalysis $parent
     ): ?NodeAnalysis {
         $isIgnored = $ignorePatternManager->shouldIgnore($itemPath);
+        $reason = $isIgnored ? ($ignorePatternManager->getIgnoreReason($itemPath) ?? 'unknown') : '';
 
         if (is_file($itemPath)) {
-            return $this->analyzeFile($itemPath, $isIgnored, $parent);
+            return $this->analyzeFile($itemPath, $isIgnored, $parent, $reason);
         }
 
         if (is_dir($itemPath)) {
@@ -185,6 +192,7 @@ class CodebaseAnalysis
             foreach ($largestFiles as $file) {
                 echo "  {$file->getFullPath()} ({$file->getSize()} bytes)\n";
                 $file->isIgnored = true;
+                $file->reason = 'Excluded by --ignore-top-large-files';
             }
         }
 

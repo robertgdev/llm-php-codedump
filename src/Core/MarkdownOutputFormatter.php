@@ -31,7 +31,8 @@ class MarkdownOutputFormatter extends OutputFormatterBase
         $output .= $this->generateSummaryString($data);
         $output .= "\n## Ignore summary:\n";
         $output .= $this->generateIgnoredFilesSummary($data, $ignorePatterns);
-        $output .= "\n## Files:\n";
+        $output .= "\n" . $this->generateSkippedFilesList($data);
+        $output .= "## Files:\n";
 
         foreach ($this->generateContentString($data) as $file) {
             $output .= "### {$file['path']}\n\n";

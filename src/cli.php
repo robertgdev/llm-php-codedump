@@ -168,6 +168,7 @@ echo $outputFormatter->generateTreeString($data, showIgnored: false);
 echo "\n" . $outputFormatter->generateSummaryString($data);
 echo "Ignore summary:\n\n";
 echo $outputFormatter->generateIgnoredFilesSummary($data, $ignorePatterns);
+echo $outputFormatter->generateSkippedFilesList($data);
 
 // Upload to audit API if requested
 if ($auditUpload) {

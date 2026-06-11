@@ -9,13 +9,22 @@ namespace CodebaseDump\Models;
  */
 class TextFileAnalysis extends NodeAnalysis
 {
+    public string $reason = '';
+
     public function __construct(
         string $name = '',
         public string $fileContent = '',
         bool $isIgnored = false,
-        ?NodeAnalysis $parent = null
+        ?NodeAnalysis $parent = null,
+        string $reason = ''
     ) {
         parent::__construct($name, $isIgnored, $parent);
+        $this->reason = $reason;
+    }
+
+    public function isBinary(): bool
+    {
+        return $this->fileContent === '[Non-text file]';
     }
 
     /**

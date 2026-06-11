@@ -119,16 +119,26 @@ class IgnorePatternManager
      */
     public function shouldIgnore(string $path): bool
     {
+        return $this->getIgnoreReason($path) !== null;
+    }
+
+    /**
+     * Checks if a path should be ignored and returns the matching pattern.
+     *
+     * @return string|null The matching pattern, or null if not ignored.
+     */
+    public function getIgnoreReason(string $path): ?string
+    {
         $normalizedPath = $this->normalizePath($path);
         $relativePath = $this->getRelativePath($normalizedPath);
 
         foreach ($this->ignorePatternsAsStr as $pattern) {
             if ($this->matchesPattern($pattern, $relativePath, $normalizedPath)) {
-                return true;
+                return $pattern;
             }
         }
 
-        return false;
+        return null;
     }
 
     /**

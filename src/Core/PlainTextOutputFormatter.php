@@ -32,6 +32,7 @@ class PlainTextOutputFormatter extends OutputFormatterBase
         $output .= $this->generateSummaryString($data);
         $output .= "Ignore summary:\n";
         $output .= $this->generateIgnoredFilesSummary($data, $ignorePatterns);
+        $output .= "\n" . $this->generateSkippedFilesList($data);
         $output .= "Files:\n\n";
 
         foreach ($this->generateContentString($data) as $file) {
