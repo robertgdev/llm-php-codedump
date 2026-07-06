@@ -143,6 +143,46 @@ class CodebaseAnalysis
     }
 
     /**
+     * Analyzes multiple directories and merges them into a single tree.
+     *
+     * @param array<string> $paths  Directory paths to analyze.
+     */
+    public function analyzeDirectories(
+        array $paths,
+        IgnorePatternManager $ignorePatternManager,
+        int $ignoreTopFiles = 0
+    ): DirectoryAnalysis {
+        if (count($paths) === 1) {
+            return $this->analyzeDirectory(
+                $paths[0],
+                $ignorePatternManager,
+                $paths[0],
+                null,
+                $ignoreTopFiles
+            );
+        }
+
+        $root = new DirectoryAnalysis(
+            name: 'Codebase Dump',
+            isIgnored: false,
+            parent: null
+        );
+
+        foreach ($paths as $path) {
+            $child = $this->analyzeDirectory(
+                $path,
+                $ignorePatternManager,
+                $path,
+                $root,
+                $ignoreTopFiles
+            );
+            $root->children[] = $child;
+        }
+
+        return $root;
+    }
+
+    /**
      * Recursively analyzes a directory and its contents.
      */
     public function analyzeDirectory(

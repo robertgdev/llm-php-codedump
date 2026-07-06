@@ -10,9 +10,10 @@ extensively, but I've used it on a few projects and it seemed to work fine.
 
 ## Description
 
-This tool analyzes a codebase directory and generates a structured text or markdown representation that can be used as input for Large Language Models (LLMs). It:
+This tool analyzes one or more codebase directories and generates a structured text or markdown representation that can be used as input for Large Language Models (LLMs). It:
 
 - Recursively analyzes directory structures
+- Supports multiple directories, merged into a single output tree
 - Identifies and ignores common non-source files (compiled code, dependencies, etc.)
 - Reads text file contents
 - Generates tree representations
@@ -38,13 +39,17 @@ composer install
 ### Basic Usage
 
 ```bash
+# Single directory
 php src/cli.php /path/to/your/project
+
+# Multiple directories (merged into one output tree)
+php src/cli.php /path/to/directory1 /path/to/directory2
 ```
 
 ### Command Line Options
 
 ```bash
-php src/cli.php <path> [options]
+php src/cli.php <path> [path2 ...] [options]
 
 Options:
   -o, --output-format      Output format (text|markdown) [default: text]
@@ -67,6 +72,9 @@ php src/cli.php /path/to/project -f mydump.txt
 
 # Ignore the 5 largest files
 php src/cli.php /path/to/project --ignore-top-large-files 5
+
+# Analyze multiple directories with markdown output
+php src/cli.php /path/to/frontend /path/to/backend -o markdown -f combined_dump.md
 
 # Upload to Code Audits API
 php src/cli.php /path/to/project --audit-upload --api-key YOUR_API_KEY
@@ -129,10 +137,17 @@ $path = '/path/to/your/project';
 $ignorePatternManager = new IgnorePatternManager($path);
 $codebaseAnalysis = new CodebaseAnalysis();
 
+// Single directory
 $data = $codebaseAnalysis->analyzeDirectory(
     path: $path,
     ignorePatternManager: $ignorePatternManager,
     basePath: $path
+);
+
+// Multiple directories (merged into one tree)
+$data = $codebaseAnalysis->analyzeDirectories(
+    paths: ['/path/to/project1', '/path/to/project2'],
+    ignorePatternManager: $ignorePatternManager
 );
 
 $formatter = new PlainTextOutputFormatter();

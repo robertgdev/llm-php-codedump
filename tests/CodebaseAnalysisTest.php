@@ -70,7 +70,9 @@ describe('CodebaseAnalysis', function () {
 
     test('listDirectoryItems returns empty array for nonexistent path', function () {
         $analysis = new CodebaseAnalysis();
+        ob_start();
         $items = $analysis->listDirectoryItems('/nonexistent/path');
+        ob_end_clean();
 
         expect($items)->toBeEmpty();
     });
@@ -167,8 +169,103 @@ describe('CodebaseAnalysis', function () {
 
     test('analyzeFile returns null for nonexistent file', function () {
         $analysis = new CodebaseAnalysis();
+        ob_start();
         $result = $analysis->analyzeFile('/nonexistent/file.txt', false, null);
+        ob_end_clean();
 
         expect($result)->toBeNull();
+    });
+
+    test('analyzeDirectories handles multiple directories', function () use (&$tempDir) {
+        $dir1 = $tempDir . '/dir1';
+        $dir2 = $tempDir . '/dir2';
+        mkdir($dir1);
+        mkdir($dir2);
+
+        file_put_contents($dir1 . '/file_a.txt', 'content a');
+        file_put_contents($dir1 . '/file_b.txt', 'content b');
+        file_put_contents($dir2 . '/file_c.txt', 'content c');
+        file_put_contents($dir2 . '/file_d.txt', 'content d');
+
+        $ignoreManager = new IgnorePatternManager(
+            $tempDir,
+            loadDefaultIgnorePatterns: false
+        );
+
+        $analysis = new CodebaseAnalysis();
+        $result = $analysis->analyzeDirectories([$dir1, $dir2], $ignoreManager);
+
+        expect($result)->toBeInstanceOf(DirectoryAnalysis::class);
+        expect($result->name)->toBe('Codebase Dump');
+        expect(count($result->children))->toBe(2);
+
+        $childNames = array_map(fn($c) => $c->name, $result->children);
+        expect($childNames)->toContain('dir1');
+        expect($childNames)->toContain('dir2');
+
+        $nonIgnoredFiles = $result->getAllNonIgnoredFiles();
+        expect(count($nonIgnoredFiles))->toBe(4);
+    });
+
+    test('analyzeDirectories with single path delegates to analyzeDirectory', function () use (&$tempDir) {
+        file_put_contents($tempDir . '/file1.txt', 'content1');
+        file_put_contents($tempDir . '/file2.txt', 'content2');
+
+        $ignoreManager = new IgnorePatternManager(
+            $tempDir,
+            loadDefaultIgnorePatterns: false
+        );
+
+        $analysis = new CodebaseAnalysis();
+        $result = $analysis->analyzeDirectories([$tempDir], $ignoreManager);
+
+        expect($result)->toBeInstanceOf(DirectoryAnalysis::class);
+        expect($result->name)->toBe(basename($tempDir));
+        expect(count($result->children))->toBe(2);
+    });
+
+    test('analyzeDirectories handles nested subdirectories in multiple roots', function () use (&$tempDir) {
+        $dir1 = $tempDir . '/src';
+        $dir2 = $tempDir . '/lib';
+        mkdir($dir1);
+        mkdir($dir2);
+        mkdir($dir1 . '/sub');
+        mkdir($dir2 . '/vendor');
+
+        file_put_contents($dir1 . '/main.php', '<?php');
+        file_put_contents($dir1 . '/sub/helper.php', '<?php');
+        file_put_contents($dir2 . '/utils.php', '<?php');
+        file_put_contents($dir2 . '/vendor/dep.php', '<?php');
+
+        $ignoreManager = new IgnorePatternManager(
+            $tempDir,
+            loadDefaultIgnorePatterns: false
+        );
+
+        $analysis = new CodebaseAnalysis();
+        $result = $analysis->analyzeDirectories([$dir1, $dir2], $ignoreManager);
+
+        $nonIgnoredFiles = $result->getAllNonIgnoredFiles();
+        $fileNames = array_map(fn($f) => $f->name, $nonIgnoredFiles);
+        expect($fileNames)->toContain('main.php', 'helper.php', 'utils.php', 'dep.php');
+
+        $dirChildren = null;
+        $libChildren = null;
+        foreach ($result->children as $child) {
+            if ($child instanceof DirectoryAnalysis && $child->name === 'src') {
+                $dirChildren = $child;
+            }
+            if ($child instanceof DirectoryAnalysis && $child->name === 'lib') {
+                $libChildren = $child;
+            }
+        }
+        expect($dirChildren)->not->toBeNull();
+        expect($libChildren)->not->toBeNull();
+
+        $subNames = array_map(fn($c) => $c->name, $dirChildren->children);
+        expect($subNames)->toContain('main.php', 'sub');
+
+        $vendorNames = array_map(fn($c) => $c->name, $libChildren->children);
+        expect($vendorNames)->toContain('utils.php', 'vendor');
     });
 });

@@ -46,10 +46,8 @@ if (isset($options['h']) || isset($options['help']) || empty($args)) {
     exit(empty($args) ? 1 : 0);
 }
 
-// Get the path argument
-$path = array_shift($args);
-
-// Parse remaining args for options that may appear after the path
+// Collect all positional path arguments (before any trailing options)
+$paths = [];
 $i = 0;
 while ($i < count($args)) {
     $arg = $args[$i];
@@ -72,6 +70,8 @@ while ($i < count($args)) {
         }
     }
     
+    // Otherwise it's a path argument (or an unknown option; treat as path)
+    $paths[] = $arg;
     $i++;
 }
 
@@ -84,36 +84,49 @@ $auditBaseUrl = $options['audit-base-url'] ?? 'https://codeaudits.ai/';
 $ignoreTopFiles = (int) ($options['ignore-top-large-files'] ?? 0);
 $apiKey = $options['api-key'] ?? null;
 
-// Validate path
-if (empty($path)) {
-    echo "Error: Path argument is required.\n\n";
+// Validate paths
+if (empty($paths)) {
+    echo "Error: At least one path argument is required.\n\n";
     echo file_get_contents(__FILE__);
     exit(1);
 }
 
-// Normalize path
-if ($path === '.') {
-    $path = getcwd();
+// Normalize and validate all paths
+$resolvedPaths = [];
+foreach ($paths as $p) {
+    if ($p === '.') {
+        $p = getcwd();
+    }
+    if (!is_dir($p)) {
+        echo "Error: The specified path is not a directory: {$p}\n";
+        exit(1);
+    }
+    $resolvedPaths[] = realpath($p);
 }
 
-if (!is_dir($path)) {
-    echo "Error: The specified path is not a directory: {$path}\n";
-    exit(1);
-}
+$paths = array_unique($resolvedPaths);
+
+// If only one directory, use it as base for ignore patterns
+$primaryPath = $paths[0];
 
 // Initialize components
-$ignorePatternManager = new IgnorePatternManager($path);
+$ignorePatternManager = new IgnorePatternManager($primaryPath);
 $codebaseAnalysis = new CodebaseAnalysis();
 
 echo "Codebase Digest\n";
-echo "Analyzing directory: {$path}\n";
+if (count($paths) === 1) {
+    echo "Analyzing directory: {$paths[0]}\n";
+} else {
+    echo "Analyzing " . count($paths) . " directories:\n";
+    foreach ($paths as $p) {
+        echo "  {$p}\n";
+    }
+}
 
-// Analyze the directory
-$data = $codebaseAnalysis->analyzeDirectory(
-    $path,
+// Analyze all directories
+$data = $codebaseAnalysis->analyzeDirectories(
+    $paths,
     $ignorePatternManager,
-    $path,
-    null,
     $ignoreTopFiles
 );
 
@@ -136,11 +149,10 @@ $output = $outputFormatter->format($data, $ignorePatterns);
 
 // Save to file
 if ($file !== null) {
-    // If file is specified with -f, use it relative to CWD
     $fullPath = getcwd() . DIRECTORY_SEPARATOR . $file;
 } else {
-    $fileName = basename($path) . '_codebase_dump' . $outputFormatter->outputFileExtension();
-    $fullPath = realpath(dirname($path)) . DIRECTORY_SEPARATOR . $fileName;
+    $fileName = (count($paths) === 1 ? basename($paths[0]) : 'multi_dir_codebase_dump') . $outputFormatter->outputFileExtension();
+    $fullPath = realpath(dirname($paths[0])) . DIRECTORY_SEPARATOR . $fileName;
 }
 
 // Ensure the output directory exists
